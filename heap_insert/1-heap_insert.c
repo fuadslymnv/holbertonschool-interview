@@ -1,155 +1,120 @@
 #include "binary_trees.h"
 
 /**
- * heap_insert - inserts a value into a Max Binary Heap
- * Max Binary Heap must be complete tree with max as root node
- * @root: a double pointer to the root node of the Heap
- * @value: the value to store in the inserted node
- *
- * Return: pointer to the newly inserted node, or NULL if failed
- */
-
-heap_t *heap_insert(heap_t **root, int value)
+ * heap_insert - insert a new node into a max binary heap
+ * @head: head of heap
+ * @value: value to add to heap
+ * Return: pointer to new node
+ **/
+heap_t *heap_insert(heap_t **head, int value)
 {
-	size_t level = 0, height = 0;
-	heap_t *location = NULL, *new = NULL;
+	heap_t *node, *tmp;
+	int i;
 
-	if (root == NULL)
-		return (NULL);
-	/* if given pointer to empty max binary heap, */
-	/*   create new node and set root pointer to new node */
-	if (*root == NULL)
+	/* If no tree exists, make node head of tree and return */
+	if (*head == NULL)
 	{
-		new = binary_tree_node(*root, value);
-		*root = new;
-		return (new);
+		node = binary_tree_node(NULL, value);
+		*head = node;
+		return (node);
 	}
-	/* Determine height of max heap to move through level-by-level */
-	height = binary_tree_height(*root);
-	/* Move through heap using level-order travesal */
-	for (level = 0; level < height; level++)
+
+	/* Get tree height */
+	i = binary_tree_height(*head) - 1;
+
+	/* Use helper function to insert node */
+	node = complete_tree_insert(*head, value, i, 1);
+
+	/* If node was not inserted, then node goes as left as possible */
+	if (!node)
 	{
-		/* Use find_location to find next opening in complete tree */
-		location = find_location(*root, level);
-		/* if the location is not NULL, break and */
-		/*   location will be used as node to insert off of */
-		if (location != NULL)
-			break;
+		for (tmp = *head; tmp->left; tmp = tmp->left)
+			;
+		node = binary_tree_node(tmp, value);
+		tmp->left = node;
 	}
-	/* Create and insert node with location as parent */
-	new = binary_tree_node(location, value);
-	/* if location had no left child, set left to new node */
-	if (!location->left)
-		location->left = new;
-	/* Otherwise, set new node as location's right child */
-	else
-		location->right = new;
-	/* Keep swapping nodes until max binary heap is achieved */
-	while (new->parent && new->n > new->parent->n)
+
+	/* heapify the tree! */
+	while (node->parent && node->n > node->parent->n)
 	{
-		new = swap_child(root, new);
+		i = node->n;
+		node->n = node->parent->n;
+		node->parent->n = i;
+		node = node->parent;
 	}
-	/* return newly inserted node */
-	return (new);
+
+	return (node);
 }
 
+
 /**
- * binary_tree_height - finds the height of completed binary tree
- * since the tree is completed, talled on left side
- * @root: pointer to the root node of the tree
- *
- * Return: returns the height of the overall tree
- */
-size_t binary_tree_height(heap_t *root)
+ * binary_tree_height - returns height of a binary tree
+ * @head: head of tree
+ * Return: height of tree
+ **/
+int binary_tree_height(binary_tree_t *head)
 {
-	if (root == NULL)
+	int left_height, right_height;
+
+	/* No tree? no height */
+	if (head == NULL)
 		return (0);
-	/* Recursively call function, adding 1 for each layer found */
-	/* Using left child, since heap is a complete tree */
-	return (1 + binary_tree_height(root->left));
+
+	/* Head has no children? Return height of 1 */
+	if (head->right == NULL && head->left == NULL)
+		return (1);
+
+	/* get height of left and right sub-trees */
+	left_height = binary_tree_height(head->left);
+	right_height = binary_tree_height(head->right);
+
+	/* return height of taller sub-tree plus 1 (to represent current node) */
+	return (max(left_height, right_height) + 1);
 }
 
 /**
- * find_location - finds first location that does not have a right child
- * the location may be a leaf or only have left child
- * since level-order traversal, will find location to add for complete tree
- * @root: pointer to the root node of the tree
- * @level: keeps track of the current level in the tree
- *
- * Return: location to insert new node off of, or NULL if has two children
- */
-heap_t *find_location(heap_t *root, size_t level)
+ * complete_tree_insert - helper function for heap_insert
+ * @head: head of tree
+ * @val: value to insert to node
+ * @target: target height to verify insertion
+ * @current: current height (recursion flag for comparison with target)
+ * Return: pointer to new inserted node
+ **/
+heap_t *complete_tree_insert(heap_t *head, int val, int target, int current)
 {
-	heap_t *location = NULL;
+	heap_t *node;
 
-	/* return NULL if no root pointer */
-	if (root == NULL)
-		return (NULL);
-	/* if first level and no right child, return root node to insert from */
-	/* check for right child because initially given a complete tree - */
-	/*   doesn't matter if left child, it's first spot with missing child */
-	if (level == 0 && root->right == NULL)
-		return (root);
-	/* if first level with both children, return NULL to continue */
-	else if (level == 0)
-		return (NULL);
-	/* recursively call function for next level with left child as root */
-	location = find_location(root->left, level - 1);
-	/* if recursive call found valid location, return that location */
-	if (location != NULL)
-		return (location);
-	/* recursively call function for next level with right child as root */
-	location = find_location(root->right, level - 1);
-	/* return valid location or NULL to continue */
-	return (location);
-}
 
-/**
- * swap_child - swaps the new node with its parent
- * @root: double pointer to the root node of the max binary heap
- * @new: recently inserted node to swap
- *
- * Return: pointer to new node after switch
- */
-heap_t *swap_child(heap_t **root, heap_t *new)
-{
-	int left = 0;
-	heap_t *temp = new->parent, *temp_r = temp->right, *temp_l = temp->left;
+	/* While we still haven't hit the target level, keep recursing */
+	if (current < target)
+	{
+		/* Try to insert to the left */
+		node = complete_tree_insert(head->left, val, target, current + 1);
 
-	if (new->parent->left == new)
-		left = 1;
-	new->parent->right = new->right;
-	if (new->right)
-		new->right->parent = new->parent;
-	new->parent->left = new->left;
-	if (new->left)
-		new->left->parent = new->parent;
-	if (left)
-	{
-		new->right = temp_r;
-		if (temp_r)
-			temp_r->parent = new;
+		/* If no space in left side, try the right side */
+		if (!node)
+			node = complete_tree_insert(head->right, val, target, current + 1);
+
+		/* Return node (or NULL if insertion failed) */
+		return (node);
 	}
-	else
+
+	/* When you've hit the target level... */
+	if (current == target)
 	{
-		new->left = temp_l;
-		if (temp_l)
-			temp_l->parent = new;
+		/* If node can be inserted to the left, insert and return */
+		if (head->left == NULL)
+		{
+			head->left = binary_tree_node(head, val);
+			return (head->left);
+		}
+		/* else, try the right side */
+		if (head->right == NULL)
+		{
+			head->right = binary_tree_node(head, val);
+			return (head->right);
+		}
 	}
-	new->parent = temp->parent;
-	if (temp->parent)
-	{
-		if (temp->parent->left == temp)
-			temp->parent->left = new;
-		else
-			temp->parent->right = new;
-	}
-	else
-		*root = new;
-	if (left)
-		new->left = temp;
-	else
-		new->right = temp;
-	temp->parent = new;
-	return (new);
+	/* if all else fails, return NULL */
+	return (NULL);
 }
