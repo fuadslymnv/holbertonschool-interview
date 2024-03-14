@@ -1,113 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "binary_trees.h"
-
-/**
- * height - measures the height of a tree
- *
- * @tree: tree root
- * Return: height
- */
-int height(const binary_tree_t *tree)
-{
-	int left = 0;
-	int right = 0;
-
-	if (tree == NULL)
-		return (-1);
-
-	left = height(tree->left);
-	right = height(tree->right);
-
-	if (left > right)
-		return (left + 1);
-
-	return (right + 1);
-}
-
-/**
- * btree_is_perfect - checks if a binary tree is perfect
- *
- * @tree: tree root
- * Return: 1 if tree is perfect, 0 otherwise
- */
-int btree_is_perfect(const binary_tree_t *tree)
-{
-	_Bool l_ch;
-	_Bool r_ch;
-	int l_per;
-	int r_per;
-
-	if (tree && height(tree->left) == height(tree->right))
-	{
-		if (height(tree->left) == -1)
-			return (1);
-
-		l_ch = !((tree->left)->left) && !((tree->left)->right);
-		r_ch = !((tree->right)->left) && !((tree->right)->right);
-
-		if ((tree->left && l_ch) && (tree->right && r_ch))
-			return (1);
-
-		if (tree && tree->left && tree->right)
-		{
-			l_per = btree_is_perfect(tree->left);
-			r_per = btree_is_perfect(tree->right);
-			return (l_per && r_per);
-		}
-	}
-
-	return (0);
-}
-
-/**
- * swap - swaps nodes when child is greater than parent
- *
- * @arg_node: parent node
- * @arg_child: child node
- * Return: no return
- */
-void swap(heap_t **arg_node, heap_t **arg_child)
-{
-	heap_t *node, *child, *node_child, *node_left, *node_right, *parent;
-	int left_right;
-
-	node = *arg_node, child = *arg_child;
-	if (child->n > node->n)
-	{
-		if (child->left)
-			child->left->parent = node;
-		if (child->right)
-			child->right->parent = node;
-		if (node->left == child)
-			node_child = node->right, left_right = 0;
-		else
-			node_child = node->left, left_right = 1;
-		node_left = child->left, node_right = child->right;
-		if (left_right == 0)
-		{
-			child->right = node_child;
-			if (node_child)
-				node_child->parent = child;
-			child->left = node;
-		}
-		else
-		{
-			child->left = node_child;
-			if (node_child)
-				node_child->parent = child;
-			child->right = node;
-		}
-		if (node->parent)
-		{
-			if (node->parent->left == node)
-				node->parent->left = child;
-			else
-				node->parent->right = child;
-		}
-		parent = node->parent, child->parent = parent;
-		node->parent = child, node->left = node_left;
-		node->right = node_right, *arg_node = child;
-	}
-}
 
 /**
  * heap_insert - function that inserts a value in Max Binary Heap
@@ -115,44 +8,183 @@ void swap(heap_t **arg_node, heap_t **arg_child)
  * @root: tree root
  * Return: pointer to the created node, or NULL on failure.
  */
-heap_t *heap_insert(heap_t **root, int value)
-{
-	heap_t *new;
 
-	if (*root == NULL)
-	{
-		*root = binary_tree_node(NULL, value);
-		return (*root);
-	}
+void correct_heap(heap_t **root) {
+    if ((*root)->left != NULL && (*root)->right != NULL) {
+        correct_heap(&(*root)->left);
+        correct_heap(&(*root)->right);
+    } else if ((*root)->left != NULL && (*root)->right == NULL && (*root)->left->left != NULL) {
+        heap_t *new = (*root)->left;
+        if (new->n > new->left->n) {
+            (*root)->right = new;
+            (*root)->right->parent = *root;
+            (*root)->left = new->left;
+            (*root)->left->parent = *root;
+            new->left = NULL;
+        } else {
+            (*root)->right = new->left;
+            (*root)->right->parent = *root;
+            new->left = NULL;
+        }
+    } else if ((*root)->right != NULL && (*root)->left == NULL && (*root)->right->left != NULL) {
+        heap_t *new = (*root)->right;
+        if (new->n < new->left->n) {
+            (*root)->left = new;
+            (*root)->left->parent = *root;
+            (*root)->right = new->left;
+            (*root)->right->parent = *root;
+            new->left = NULL;
+        } else {
+            (*root)->left = new->left;
+            (*root)->left->parent = *root;
+            new->left = NULL;
+        }
+    }
+}
 
-	if (btree_is_perfect(*root) || !btree_is_perfect((*root)->left))
-	{
-		if ((*root)->left)
-		{
-			new = heap_insert(&((*root)->left), value);
-			swap(root, &((*root)->left));
-			return (new);
-		}
-		else
-		{
-			new = (*root)->left = binary_tree_node(*root, value);
-			swap(root, &((*root)->left));
-			return (new);
-		}
-	}
+int height(heap_t *root) {
+    int left, right;
 
-	if ((*root)->right)
-	{
-		new = heap_insert(&((*root)->right), value);
-		swap(root, (&(*root)->right));
-		return (new);
-	}
-	else
-	{
-		new = (*root)->right = binary_tree_node(*root, value);
-		swap(root, &((*root)->right));
-		return (new);
-	}
+    if (root == NULL) {
+        return (0);
+    }
 
-	return (NULL);
+    left = height(root->left);
+    right = height(root->right);
+
+    if (left > right) {
+        return (left + 1);
+    } else {
+        return (right + 1);
+    }
+}
+
+int left_is_full(heap_t *root, int h) {
+    int count = 0;
+    heap_t *temp = root;
+
+    if (temp == NULL) {
+        temp = temp->left;
+    }
+
+    while (temp->left != NULL && temp->right != NULL) {
+        count++;
+        temp = temp->left;
+    }
+
+    if (count == h - 1) {
+        return (1);
+    } else {
+        return (0);
+    }
+}
+
+int right_is_full(heap_t *root, int h) {
+    int count = 0;
+    heap_t *temp = root;
+
+    if (temp == NULL) {
+        temp = temp->right;
+    }
+
+    while (temp->left != NULL && temp->right != NULL) {
+        count++;
+        temp = temp->right;
+    }
+
+    if (count == h - 1) {
+        return (1);
+    } else {
+        return (0);
+    }
+}
+
+heap_t *heap_insert(heap_t **root, int value) {
+    heap_t *new;
+    int left_is_ful, right_is_ful;
+
+    if (*root == NULL) {
+        *root = malloc(sizeof(heap_t));
+        if (*root == NULL) {
+            return NULL;
+        }
+        (*root)->n = value;
+        (*root)->left = NULL;
+        (*root)->right = NULL;
+        (*root)->parent = NULL;
+        return *root;
+    }
+
+    new = malloc(sizeof(heap_t));
+
+    if (new == NULL) {
+        return (NULL);
+    }
+
+    new->n = value;
+    new->left = NULL;
+    new->right = NULL;
+    new->parent = NULL;
+
+    if ((*root)->n > value && (*root)->left == NULL)
+    {
+        new->parent = *root;
+        (*root)->left = new;
+        return (new);
+    }
+    else if ((*root)->n > value && (*root)->right == NULL)
+    {
+        new->parent = *root;
+        (*root)->right = new;
+        return (new);
+    }
+    else if (((*root)->n < value)) {
+        int left_is_ful = left_is_full(*root, height(*root));
+        int right_is_ful = right_is_full(*root, height(*root));
+
+
+        if ((left_is_ful == 1 && right_is_ful == 1) || (left_is_ful == 0 && right_is_ful == 1) || (left_is_ful == 0 && right_is_ful == 0)) {
+            if ((*root)->parent == NULL && (*root)->left != NULL) {
+                new->parent = (*root)->parent;
+                new->right = (*root)->right;
+                new->left = (*root);
+                (*root)->right = NULL;
+                *root = new;
+            } else {
+                new->parent = (*root)->parent;
+                new->left = *root;
+                (*root)->parent = new;
+                *root = new;
+            }
+        }
+        else if (left_is_ful == 1 && right_is_ful == 0) {
+            if ((*root)->parent == NULL && (*root)->right != NULL) {
+                new->parent = (*root)->parent;
+                new->left = (*root)->left;
+                new->right = (*root);
+                (*root)->left = NULL;
+                *root = new;
+            } else {
+                new->parent = (*root)->parent;
+                new->right = *root;
+                (*root)->parent = new;
+                *root = new;
+            }
+        }
+
+        correct_heap(root);
+
+        return (new);
+    }
+
+    left_is_ful = left_is_full(*root, height(*root));
+    right_is_ful = right_is_full(*root, height(*root));
+
+    if ((left_is_ful == 1 && right_is_ful == 1) || (left_is_ful == 0 && right_is_ful == 1) || (left_is_ful == 0 && right_is_ful == 0)) {
+        heap_insert(&(*root)->left, value);
+    } else {
+        heap_insert(&(*root)->right, value);
+    }
+
+    return (new);
 }
